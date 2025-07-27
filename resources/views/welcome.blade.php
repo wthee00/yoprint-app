@@ -4,60 +4,162 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>YoPrint</title>
+        <title>File Upload</title>
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
+        @vite(['resources/js/app.js'])
 
-        <!-- Styles -->
         <style>
-            /*! modern-normalize v1.1.0 | MIT License | https://github.com/sindresorhus/modern-normalize */*,::after,::before{box-sizing:border-box}:root{-moz-tab-size:4;tab-size:4}html{line-height:1.15;-webkit-text-size-adjust:100%}body{margin:0}body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji'}hr{height:0;color:inherit}abbr[title]{text-decoration:underline dotted}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-size:100%;line-height:1.15;margin:0}button,select{text-transform:none}[type=button],[type=reset],[type=submit],button{-webkit-appearance:button}::-moz-focus-inner{border-style:none;padding:0}:-moz-focusring{outline:1px dotted ButtonText}:-moz-ui-invalid{box-shadow:none}legend{padding:0}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}
+            body {
+                background-color: #fff;
+                font-family: sans-serif;
+                padding: 20px;
+            }
+            .container {
+                max-width: 800px;
+                margin: 0 auto;
+                border: 1px solid #000;
+                padding: 20px;
+            }
+            .upload-container {
+                border: 1px solid #000;
+                padding: 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+            .upload-button {
+                background-color: #fff;
+                border: 1px solid #000;
+                padding: 5px 15px;
+                font-size: 16px;
+                cursor: pointer;
+                box-shadow: 3px 3px 0px #000;
+            }
+            .table-container {
+                border: 1px solid #000;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th, td {
+                border: 1px solid #000;
+                padding: 10px;
+                text-align: left;
+            }
+            thead {
+                background-color: #e0e0e0;
+            }
+            .status-badge {
+                display: inline-block;
+                padding: 5px 10px;
+                border-radius: 5px;
+                color: #000;
+            }
+            .status-completed { background-color: #c8e6c9; }
+            .status-processing { background-color: #fff9c4; }
+            .status-failed { background-color: #ffcdd2; }
+            .status-pending { background-color: #f5f5f5; }
         </style>
     </head>
     <body>
         <div class="container">
-            <h1>Upload CSV</h1>
-            <form action="/upload" method="POST" enctype="multipart/form-data">
-                @csrf
-                <input type="file" name="csv_file" required>
-                <button type="submit">Upload</button>
-            </form>
+            <div class="upload-container">
+                <span>Select file/Drag and drop</span>
+                <form action="/upload" method="POST" enctype="multipart/form-data" id="upload-form" class="d-inline">
+                    @csrf
+                    <label for="csv_file" class="upload-button">
+                        Upload File
+                    </label>
+                    <input type="file" id="csv_file" name="csv_file" class="d-none" style="display: none;" onchange="document.getElementById('upload-form').submit()">
+                </form>
+            </div>
 
-            <h2>Recent Uploads</h2>
-            <table id="uploads-table">
-                <thead>
-                    <tr>
-                        <th>File Name</th>
-                        <th>Upload Time</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
+            <div class="table-container">
+                <table id="uploads-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>File Name</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows will be injected by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <script>
+            function timeAgoInWords(dateString) {
+                const now = new Date();
+                const past = new Date(dateString);
+                const seconds = Math.floor((now - past) / 1000);
+
+                let interval = seconds / 31536000;
+                if (interval > 1) {
+                    return Math.floor(interval) + " years ago";
+                }
+                interval = seconds / 2592000;
+                if (interval > 1) {
+                    return Math.floor(interval) + " months ago";
+                }
+                interval = seconds / 86400;
+                if (interval > 1) {
+                    return Math.floor(interval) + " days ago";
+                }
+                interval = seconds / 3600;
+                if (interval > 1) {
+                    return Math.floor(interval) + " hours ago";
+                }
+                interval = seconds / 60;
+                if (interval > 1) {
+                    return Math.floor(interval) + " minutes ago";
+                }
+                return Math.floor(seconds) + " seconds ago";
+            }
+
             function fetchUploads() {
                 fetch('/uploads')
                     .then(response => response.json())
                     .then(data => {
                         const tableBody = document.querySelector('#uploads-table tbody');
                         tableBody.innerHTML = '';
-                        data.forEach(upload => {
-                            const row = `<tr>
-                                <td>${upload.file_name}</td>
-                                <td>${upload.created_at}</td>
-                                <td>${upload.status}</td>
-                            </tr>`;
-                            tableBody.innerHTML += row;
-                        });
+                        if (data.length === 0) {
+                            tableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px;">No uploads yet.</td></tr>`;
+                        } else {
+                            data.forEach(upload => {
+                                let statusCell;
+                                const status = upload.status.toLowerCase();
+                                statusCell = `<span class="status-badge status-${status}">${upload.status}</span>`;
+
+                                const uploadDate = new Date(upload.created_at);
+                                const timeString = uploadDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                                const dateString = `${uploadDate.getMonth() + 1}-${uploadDate.getDate()}-${uploadDate.getFullYear().toString().substr(-2)}`;
+                                const timeAgo = timeAgoInWords(upload.created_at);
+
+                                const row = `<tr>
+                                    <td>${dateString} ${timeString}<br><small>(${timeAgo})</small></td>
+                                    <td>${upload.file_name}</td>
+                                    <td>${statusCell}</td>
+                                </tr>`;
+                                tableBody.innerHTML += row;
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching uploads:', error);
+                        const tableBody = document.querySelector('#uploads-table tbody');
+                        tableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: red; padding: 20px;">Error loading data.</td></tr>`;
                     });
             }
 
-            setInterval(fetchUploads, 5000);
-            fetchUploads();
+            document.addEventListener('DOMContentLoaded', () => {
+                fetchUploads();
+                setInterval(fetchUploads, 5000);
+            });
         </script>
     </body>
 </html>
